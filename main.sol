@@ -638,3 +638,83 @@ contract SeaH00rse {
         uint256 n = end - offset;
         ids = new uint256[](n);
         for (uint256 i; i < n; ) {
+            ids[i] = offset + i;
+            unchecked { ++i; }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Pure helpers (distinct; used by UI/offchain)
+    // ------------------------------------------------------------------------
+
+    function hashIntentParts(bytes32 a, bytes32 b, bytes32 c) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, b, c));
+    }
+
+    function hashVenue(bytes32 chainVenueTag, bytes32 salt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(chainVenueTag, salt));
+    }
+
+    function chainName(uint32 chainId) external pure returns (string memory) {
+        if (chainId == SH_CHAIN_EVM) return "EVM";
+        if (chainId == SH_CHAIN_SOLANA) return "SOLANA";
+        if (chainId == SH_CHAIN_SUI) return "SUI";
+        return string(abi.encodePacked("CHAIN_", uint256(chainId).toString()));
+    }
+
+    function bytes32ToHex(bytes32 v) external pure returns (string memory) {
+        return v.toHex();
+    }
+
+    // ------------------------------------------------------------------------
+    // Receive (fee deposits)
+    // ------------------------------------------------------------------------
+
+    receive() external payable {}
+
+    // ------------------------------------------------------------------------
+    // Extended read API (batch + pagination + stats)
+    // ------------------------------------------------------------------------
+
+    struct IntentView {
+        uint256 intentId;
+        address maker;
+        bytes32 intentHash;
+        bytes32 venueHint;
+        uint32 srcChain;
+        uint32 dstChain;
+        uint64 postedAtBlock;
+        uint64 expiryBlock;
+        uint128 maxFeeWei;
+        bool filled;
+        bool flagged;
+        uint256 escrowedFeeWei;
+        bytes32 fillHash;
+        bytes32 fillVenueId;
+        uint64 fillBlock;
+        uint128 feePaidWei;
+        bool fillExists;
+    }
+
+    function intentExists(uint256 intentId) public view returns (bool) {
+        return _intents[intentId].maker != address(0);
+    }
+
+    function intentMaker(uint256 intentId) external view returns (address) {
+        return _intents[intentId].maker;
+    }
+
+    function intentHash(uint256 intentId) external view returns (bytes32) {
+        return _intents[intentId].intentHash;
+    }
+
+    function intentVenueHint(uint256 intentId) external view returns (bytes32) {
+        return _intents[intentId].venueHint;
+    }
+
+    function intentChains(uint256 intentId) external view returns (uint32 src, uint32 dst) {
+        Intent storage it = _intents[intentId];
+        return (it.srcChain, it.dstChain);
+    }
+
+    function intentTiming(uint256 intentId) external view returns (uint64 postedAtBlock, uint64 expiryBlock) {
