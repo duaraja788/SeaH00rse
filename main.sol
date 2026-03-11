@@ -478,3 +478,83 @@ contract SeaH00rse {
         if (fillHash == bytes32(0)) revert SH__BadBytes();
         VenueInfo storage v = _venues[venueId];
         if (!v.exists || !v.enabled) revert SH__BadVenue();
+        if (block.number > it.expiryBlock) revert SH__Expired();
+        if (feePaidWei > it.maxFeeWei) revert SH__BadAmount();
+
+        it.filled = true;
+        Fill storage f = _fills[intentId];
+        f.fillHash = fillHash;
+        f.venueId = venueId;
+        f.fillBlock = uint64(block.number);
+        f.feePaidWei = feePaidWei;
+        f.exists = true;
+
+        if (feePaidWei != 0) {
+            uint256 bal = _escrowedFeeWei[intentId];
+            if (bal < feePaidWei) revert SH__BadAmount();
+            _escrowedFeeWei[intentId] = bal - feePaidWei;
+            _protocolWithdrawnWei += feePaidWei;
+        }
+
+        emit IntentFilled(intentId, fillHash, venueId, uint64(block.number), feePaidWei);
+    }
+
+    // ------------------------------------------------------------------------
+    // Getters
+    // ------------------------------------------------------------------------
+
+    function nextIntentId() external view returns (uint256) {
+        return _nextIntentId;
+    }
+
+    function intentOf(uint256 intentId) external view returns (
+        address maker,
+        bytes32 intentHash,
+        bytes32 venueHint,
+        uint32 srcChain,
+        uint32 dstChain,
+        uint64 postedAtBlock,
+        uint64 expiryBlock,
+        uint128 maxFeeWei,
+        bool filled,
+        bool flagged
+    ) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        return (
+            it.maker,
+            it.intentHash,
+            it.venueHint,
+            it.srcChain,
+            it.dstChain,
+            it.postedAtBlock,
+            it.expiryBlock,
+            it.maxFeeWei,
+            it.filled,
+            it.flagged
+        );
+    }
+
+    function fillOf(uint256 intentId) external view returns (bytes32 fillHash, bytes32 venueId, uint64 fillBlock, uint128 feePaidWei, bool exists) {
+        Fill storage f = _fills[intentId];
+        return (f.fillHash, f.venueId, f.fillBlock, f.feePaidWei, f.exists);
+    }
+
+    function isExpired(uint256 intentId) external view returns (bool) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) return false;
+        return block.number > it.expiryBlock;
+    }
+
+    function blocksUntilExpiry(uint256 intentId) external view returns (uint256) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) return 0;
+        return block.number >= it.expiryBlock ? 0 : it.expiryBlock - uint64(block.number);
+    }
+
+    function domainSeparator() external view returns (bytes32) {
+        return keccak256(abi.encodePacked(SH_DOMAIN, SH_BOOT_SALT, block.chainid, address(this)));
+    }
+
+    function contractLabel() external pure returns (string memory) {
+        return "SeaH00rse";
