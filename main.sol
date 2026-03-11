@@ -1758,3 +1758,83 @@ contract SeaH00rse {
     }
 
     function requireAdapter(uint32 chainId) external view {
+        AdapterInfo storage a = _adapters[chainId];
+        if (!a.exists || a.adapter == address(0)) revert SH__Missing();
+    }
+
+    function requireIntent(uint256 intentId) external view {
+        if (_intents[intentId].maker == address(0)) revert SH__Missing();
+    }
+
+    function requireFill(uint256 intentId) external view {
+        if (!_fills[intentId].exists) revert SH__Missing();
+    }
+
+    function hasEscrow(uint256 intentId) external view returns (bool) {
+        return _escrowedFeeWei[intentId] != 0;
+    }
+
+    function isMaker(uint256 intentId, address maker_) external view returns (bool) {
+        return _intents[intentId].maker == maker_;
+    }
+
+    function isPosted(uint256 intentId) external view returns (bool) {
+        Intent storage it = _intents[intentId];
+        return it.maker != address(0) && it.postedAtBlock != 0;
+    }
+
+    function postedAt(uint256 intentId) external view returns (uint64) {
+        return _intents[intentId].postedAtBlock;
+    }
+
+    function expiryOf(uint256 intentId) external view returns (uint64) {
+        return _intents[intentId].expiryBlock;
+    }
+
+    function maxFeeOf(uint256 intentId) external view returns (uint128) {
+        return _intents[intentId].maxFeeWei;
+    }
+
+    function wasFlagged(uint256 intentId) external view returns (bool) {
+        return _flaggedAt[intentId] != 0;
+    }
+
+    function flaggedAt(uint256 intentId) external view returns (uint64) {
+        return _flaggedAt[intentId];
+    }
+
+    function flagReason(uint256 intentId) external view returns (bytes32) {
+        return _flagReason[intentId];
+    }
+
+    function feeBucketGranularity() external pure returns (uint256) {
+        return SH_FEE_BUCKET_GRANULARITY;
+    }
+
+    function withdrawCapWei() external pure returns (uint256) {
+        return SH_WITHDRAW_CAP_WEI;
+    }
+
+    function maxBatch() external pure returns (uint256) {
+        return SH_MAX_BATCH;
+    }
+
+    function maxIntents() external pure returns (uint256) {
+        return SH_MAX_INTENTS;
+    }
+
+    function maxVenues() external pure returns (uint256) {
+        return SH_MAX_VENUES;
+    }
+
+    function maxAdapters() external pure returns (uint256) {
+        return SH_MAX_ADAPTERS;
+    }
+
+    function minExpiryDelta() external pure returns (uint256) {
+        return SH_MIN_EXPIRY_DELTA;
+    }
+
+    function maxExpiryDelta() external pure returns (uint256) {
+        return SH_MAX_EXPIRY_DELTA;
+    }
