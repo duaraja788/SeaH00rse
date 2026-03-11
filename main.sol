@@ -78,3 +78,83 @@ library SH_Strings {
 
 // ============================================================================
 //  CORE CONTRACT
+// ============================================================================
+
+contract SeaH00rse {
+    using SH_Strings for uint256;
+    using SH_Strings for bytes32;
+
+    // ------------------------------------------------------------------------
+    // Events
+    // ------------------------------------------------------------------------
+
+    event AdminProposed(address indexed previousAdmin, address indexed proposedAdmin, uint64 atBlock);
+    event AdminAccepted(address indexed previousAdmin, address indexed newAdmin, uint64 atBlock);
+    event RiskCouncilChanged(address indexed previousCouncil, address indexed newCouncil, uint64 atBlock);
+    event RelayerSeal(bool sealed, uint64 atBlock);
+    event PauseToggled(bool paused, uint64 atBlock);
+
+    event AdapterRegistered(uint32 indexed chainId, bytes32 indexed adapterTag, address adapter, uint64 atBlock);
+    event VenueRegistered(bytes32 indexed venueId, bytes32 indexed chainVenueTag, uint64 atBlock);
+    event VenueEnabled(bytes32 indexed venueId, bool enabled, uint64 atBlock);
+
+    event IntentPosted(
+        uint256 indexed intentId,
+        address indexed maker,
+        bytes32 indexed intentHash,
+        uint32 srcChain,
+        uint32 dstChain,
+        uint64 expiryBlock,
+        uint128 maxFeeWei
+    );
+
+    event IntentFlagged(uint256 indexed intentId, bytes32 indexed reason, uint64 atBlock);
+    event IntentUnflagged(uint256 indexed intentId, uint64 atBlock);
+
+    event IntentFilled(
+        uint256 indexed intentId,
+        bytes32 indexed fillHash,
+        bytes32 indexed venueId,
+        uint64 fillBlock,
+        uint128 feePaidWei
+    );
+
+    event FeeDeposited(uint256 indexed intentId, address indexed from, uint256 amountWei);
+    event FeeWithdrawn(uint256 indexed intentId, address indexed to, uint256 amountWei);
+    event ProtocolWithdrawn(address indexed to, uint256 amountWei, uint64 atBlock);
+
+    // ------------------------------------------------------------------------
+    // Constants (unique)
+    // ------------------------------------------------------------------------
+
+    uint256 public constant SH_REVISION = 1;
+    uint256 public constant SH_MAX_INTENTS = 120_000;
+    uint256 public constant SH_MAX_BATCH = 72;
+    uint256 public constant SH_MAX_VENUES = 4096;
+    uint256 public constant SH_MAX_ADAPTERS = 512;
+    uint256 public constant SH_FLAG_WINDOW_BLOCKS = 1_111;
+    uint256 public constant SH_MIN_EXPIRY_DELTA = 24;
+    uint256 public constant SH_MAX_EXPIRY_DELTA = 200_000;
+    uint256 public constant SH_WITHDRAW_CAP_WEI = 4 ether;
+    uint256 public constant SH_FEE_BUCKET_GRANULARITY = 1 gwei;
+    uint32 public constant SH_CHAIN_EVM = 1;
+    uint32 public constant SH_CHAIN_SOLANA = 501;
+    uint32 public constant SH_CHAIN_SUI = 784;
+
+    bytes32 public constant SH_DOMAIN = keccak256("SeaH00rse.Domain.CrossChain.Intent.v1");
+    bytes32 public constant SH_BOOT_SALT = 0xbf5467ea4922d65fe49cedae804801d41e5d016d84e0b7e958e7b5e68d05f59c;
+
+    // ------------------------------------------------------------------------
+    // Roles (immutable as requested)
+    // ------------------------------------------------------------------------
+
+    address public immutable relayer;
+    address public immutable bootAdmin;
+    uint256 public immutable genesisBlock;
+
+    // ------------------------------------------------------------------------
+    // Storage
+    // ------------------------------------------------------------------------
+
+    address public admin;
+    address public pendingAdmin;
