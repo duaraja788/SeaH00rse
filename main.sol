@@ -1678,3 +1678,83 @@ contract SeaH00rse {
 
     function eventTopicIntentFilled() external pure returns (bytes32) {
         return keccak256("IntentFilled(uint256,bytes32,bytes32,uint64,uint128)");
+    }
+
+    function eventTopicAdapterRegistered() external pure returns (bytes32) {
+        return keccak256("AdapterRegistered(uint32,bytes32,address,uint64)");
+    }
+
+    function eventTopicVenueRegistered() external pure returns (bytes32) {
+        return keccak256("VenueRegistered(bytes32,bytes32,uint64)");
+    }
+
+    function eventTopicVenueEnabled() external pure returns (bytes32) {
+        return keccak256("VenueEnabled(bytes32,bool,uint64)");
+    }
+
+    function eventTopicFlag() external pure returns (bytes32) {
+        return keccak256("IntentFlagged(uint256,bytes32,uint64)");
+    }
+
+    function eventTopicUnflag() external pure returns (bytes32) {
+        return keccak256("IntentUnflagged(uint256,uint64)");
+    }
+
+    function computeLogKey(bytes32 topic0, bytes32 topic1, bytes32 topic2) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(topic0, topic1, topic2));
+    }
+
+    function computeIndexKey(bytes32 namespace_, uint256 id) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(namespace_, id));
+    }
+
+    function computeNamespace(string calldata label) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("NS", label));
+    }
+
+    function computeVenueNamespace(uint32 chainId) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("VENUE_NS", chainId));
+    }
+
+    function computeAdapterNamespace(uint32 chainId) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("ADAPTER_NS", chainId));
+    }
+
+    function computeIntentNamespace(uint32 srcChain, uint32 dstChain) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("INTENT_NS", srcChain, dstChain));
+    }
+
+    function computeFillNamespace(uint32 dstChain, bytes32 venueId) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("FILL_NS", dstChain, venueId));
+    }
+
+    function computeFeeNamespace(address makerAddr) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("FEE_NS", makerAddr));
+    }
+
+    function computeRiskNamespace(bytes32 reason) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("RISK_NS", reason));
+    }
+
+    // ------------------------------------------------------------------------
+    // Final helper bundle (small, deterministic, UI-friendly)
+    // ------------------------------------------------------------------------
+
+    function isSolanaLike(uint32 chainId) external pure returns (bool) {
+        return chainId == SH_CHAIN_SOLANA;
+    }
+
+    function isSuiLike(uint32 chainId) external pure returns (bool) {
+        return chainId == SH_CHAIN_SUI;
+    }
+
+    function isEvmLike(uint32 chainId) external pure returns (bool) {
+        return chainId == SH_CHAIN_EVM;
+    }
+
+    function requireVenueEnabled(bytes32 venueId) external view {
+        VenueInfo storage v = _venues[venueId];
+        if (!v.exists || !v.enabled) revert SH__BadVenue();
+    }
+
+    function requireAdapter(uint32 chainId) external view {
