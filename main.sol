@@ -158,3 +158,83 @@ contract SeaH00rse {
 
     address public admin;
     address public pendingAdmin;
+    address public riskCouncil;
+
+    bool public paused;
+    bool public relayerSealed;
+
+    uint256 private _lock;
+    uint256 private _nextIntentId;
+    uint256 private _protocolWithdrawnWei;
+
+    struct AdapterInfo {
+        address adapter;
+        bytes32 tag;
+        uint64 registeredAt;
+        bool exists;
+    }
+
+    struct VenueInfo {
+        bytes32 chainVenueTag;
+        uint64 registeredAt;
+        bool enabled;
+        bool exists;
+    }
+
+    struct Intent {
+        address maker;
+        bytes32 intentHash;
+        bytes32 venueHint;
+        uint32 srcChain;
+        uint32 dstChain;
+        uint64 postedAtBlock;
+        uint64 expiryBlock;
+        uint128 maxFeeWei;
+        bool filled;
+        bool flagged;
+    }
+
+    struct Fill {
+        bytes32 fillHash;
+        bytes32 venueId;
+        uint64 fillBlock;
+        uint128 feePaidWei;
+        bool exists;
+    }
+
+    mapping(uint32 => AdapterInfo) private _adapters; // chainId => adapter
+    uint32[] private _adapterChainIds;
+
+    mapping(bytes32 => VenueInfo) private _venues; // venueId => info
+    bytes32[] private _venueIds;
+
+    mapping(uint256 => Intent) private _intents;
+    mapping(uint256 => Fill) private _fills;
+    mapping(uint256 => uint256) private _escrowedFeeWei; // intentId => fee escrow balance
+    mapping(address => uint256) private _makerIntentCount;
+
+    mapping(uint256 => uint64) private _flaggedAt;
+    mapping(uint256 => bytes32) private _flagReason;
+
+    // ------------------------------------------------------------------------
+    // Modifiers
+    // ------------------------------------------------------------------------
+
+    modifier nonReentrant() {
+        if (_lock != 0) revert SH__Reentrancy();
+        _lock = 1;
+        _;
+        _lock = 0;
+    }
+
+    modifier whenNotPaused() {
+        if (paused) revert SH__Paused();
+        _;
+    }
+
+    modifier onlyAdmin() {
+        if (msg.sender != admin) revert SH__NotAdmin();
+        _;
+    }
+
+    modifier onlyRiskCouncil() {
