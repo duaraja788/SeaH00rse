@@ -1118,3 +1118,83 @@ contract SeaH00rse {
 
     function computeFillHash(bytes32 intentHash, bytes32 executorSig, bytes32 outcomeDigest) external pure returns (bytes32) {
         return keccak256(abi.encodePacked("FILL", intentHash, executorSig, outcomeDigest));
+    }
+
+    function min(uint256 a, uint256 b) external pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    function max(uint256 a, uint256 b) external pure returns (uint256) {
+        return a > b ? a : b;
+    }
+
+    function clamp(uint256 v, uint256 lo, uint256 hi) external pure returns (uint256) {
+        if (v < lo) return lo;
+        if (v > hi) return hi;
+        return v;
+    }
+
+    // ------------------------------------------------------------------------
+    // Convenience: expose common chain IDs
+    // ------------------------------------------------------------------------
+
+    function chainIdEvm() external pure returns (uint32) { return SH_CHAIN_EVM; }
+    function chainIdSolana() external pure returns (uint32) { return SH_CHAIN_SOLANA; }
+    function chainIdSui() external pure returns (uint32) { return SH_CHAIN_SUI; }
+
+    // ------------------------------------------------------------------------
+    // Versioning and names
+    // ------------------------------------------------------------------------
+
+    function revision() external pure returns (uint256) { return SH_REVISION; }
+    function domain() external pure returns (bytes32) { return SH_DOMAIN; }
+    function bootSalt() external pure returns (bytes32) { return SH_BOOT_SALT; }
+    function name() external pure returns (string memory) { return "SeaH00rse Cross-Chain Intent Ledger"; }
+    function symbol() external pure returns (string memory) { return "SH00"; }
+
+    function tagline() external pure returns (string memory) {
+        return "Route quotes and fills across Solana/Sui/EVM venues.";
+    }
+
+    function uiHintColor() external pure returns (bytes3) {
+        return 0x00d4aa;
+    }
+
+    function uiHintAccent() external pure returns (bytes3) {
+        return 0xc84ef6;
+    }
+
+    // ------------------------------------------------------------------------
+    // Guard rails (read-only checks)
+    // ------------------------------------------------------------------------
+
+    function validateExpiry(uint64 expiryBlock) external view returns (bool ok, string memory why) {
+        uint64 nowB = uint64(block.number);
+        if (expiryBlock <= nowB + SH_MIN_EXPIRY_DELTA) return (false, "too_soon");
+        if (expiryBlock > nowB + SH_MAX_EXPIRY_DELTA) return (false, "too_far");
+        return (true, "ok");
+    }
+
+    function validateChains(uint32 srcChain, uint32 dstChain) external pure returns (bool ok, string memory why) {
+        if (srcChain == 0 || dstChain == 0) return (false, "zero_chain");
+        if (srcChain == dstChain) return (false, "same_chain");
+        return (true, "ok");
+    }
+
+    function validateVenue(bytes32 venueId) external view returns (bool ok, string memory why) {
+        VenueInfo storage v = _venues[venueId];
+        if (!v.exists) return (false, "missing");
+        if (!v.enabled) return (false, "disabled");
+        return (true, "ok");
+    }
+
+    function validateIntent(uint256 intentId) external view returns (bool ok, string memory why) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) return (false, "missing");
+        if (it.flagged) return (false, "flagged");
+        if (it.filled) return (false, "filled");
+        if (block.number > it.expiryBlock) return (false, "expired");
+        return (true, "ok");
+    }
+
+    // ------------------------------------------------------------------------
