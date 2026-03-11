@@ -718,3 +718,83 @@ contract SeaH00rse {
     }
 
     function intentTiming(uint256 intentId) external view returns (uint64 postedAtBlock, uint64 expiryBlock) {
+        Intent storage it = _intents[intentId];
+        return (it.postedAtBlock, it.expiryBlock);
+    }
+
+    function intentState(uint256 intentId) external view returns (bool filled, bool flagged) {
+        Intent storage it = _intents[intentId];
+        return (it.filled, it.flagged);
+    }
+
+    function fillExists(uint256 intentId) external view returns (bool) {
+        return _fills[intentId].exists;
+    }
+
+    function fillVenue(uint256 intentId) external view returns (bytes32) {
+        return _fills[intentId].venueId;
+    }
+
+    function fillHash(uint256 intentId) external view returns (bytes32) {
+        return _fills[intentId].fillHash;
+    }
+
+    function fillTiming(uint256 intentId) external view returns (uint64 fillBlock) {
+        return _fills[intentId].fillBlock;
+    }
+
+    function fillFeePaid(uint256 intentId) external view returns (uint128) {
+        return _fills[intentId].feePaidWei;
+    }
+
+    function getIntentView(uint256 intentId) external view returns (IntentView memory v) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        Fill storage f = _fills[intentId];
+        v.intentId = intentId;
+        v.maker = it.maker;
+        v.intentHash = it.intentHash;
+        v.venueHint = it.venueHint;
+        v.srcChain = it.srcChain;
+        v.dstChain = it.dstChain;
+        v.postedAtBlock = it.postedAtBlock;
+        v.expiryBlock = it.expiryBlock;
+        v.maxFeeWei = it.maxFeeWei;
+        v.filled = it.filled;
+        v.flagged = it.flagged;
+        v.escrowedFeeWei = _escrowedFeeWei[intentId];
+        v.fillHash = f.fillHash;
+        v.fillVenueId = f.venueId;
+        v.fillBlock = f.fillBlock;
+        v.feePaidWei = f.feePaidWei;
+        v.fillExists = f.exists;
+    }
+
+    function getIntentViews(uint256[] calldata intentIds) external view returns (IntentView[] memory views) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        views = new IntentView[](n);
+        for (uint256 i; i < n; ) {
+            uint256 id = intentIds[i];
+            Intent storage it = _intents[id];
+            if (it.maker != address(0)) {
+                Fill storage f = _fills[id];
+                views[i] = IntentView({
+                    intentId: id,
+                    maker: it.maker,
+                    intentHash: it.intentHash,
+                    venueHint: it.venueHint,
+                    srcChain: it.srcChain,
+                    dstChain: it.dstChain,
+                    postedAtBlock: it.postedAtBlock,
+                    expiryBlock: it.expiryBlock,
+                    maxFeeWei: it.maxFeeWei,
+                    filled: it.filled,
+                    flagged: it.flagged,
+                    escrowedFeeWei: _escrowedFeeWei[id],
+                    fillHash: f.fillHash,
+                    fillVenueId: f.venueId,
+                    fillBlock: f.fillBlock,
+                    feePaidWei: f.feePaidWei,
+                    fillExists: f.exists
+                });
