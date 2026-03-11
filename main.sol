@@ -1838,3 +1838,71 @@ contract SeaH00rse {
     function maxExpiryDelta() external pure returns (uint256) {
         return SH_MAX_EXPIRY_DELTA;
     }
+
+    function flagWindowBlocks() external pure returns (uint256) {
+        return SH_FLAG_WINDOW_BLOCKS;
+    }
+
+    function chainConstants() external pure returns (uint32 evm, uint32 sol, uint32 sui) {
+        return (SH_CHAIN_EVM, SH_CHAIN_SOLANA, SH_CHAIN_SUI);
+    }
+
+    function computeDisplaySeed(uint256 a, uint256 b, bytes32 c) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DISPLAY", a, b, c));
+    }
+
+    function computeUiId(address maker_, uint256 intentId) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("UI", maker_, intentId));
+    }
+
+    function computePairKey(bytes32 srcAsset, bytes32 dstAsset) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("PAIR", srcAsset, dstAsset));
+    }
+
+    function computeMarketKey(uint32 chainId, bytes32 venueId, bytes32 pairKey) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("MARKET", chainId, venueId, pairKey));
+    }
+
+    function computeSlippageKey(bytes32 intentHash_, uint16 bps) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("SLIPPAGE", intentHash_, bps));
+    }
+
+    function computeDeadlineKey(bytes32 intentHash_, uint64 expiryBlock_) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DEADLINE", intentHash_, expiryBlock_));
+    }
+
+    function computeFeeKey(bytes32 intentHash_, uint128 feeWei) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("FEE", intentHash_, feeWei));
+    }
+
+    function computeReplaySafe(bytes32 intentHash_, uint256 chainId, address self) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("REPLAY", intentHash_, chainId, self));
+    }
+
+    function computeIntentIdFromHash(bytes32 intentHash_) external pure returns (uint256) {
+        return uint256(keccak256(abi.encodePacked("ID", intentHash_)));
+    }
+
+    function computeVenueIdFromTag(bytes32 tag_) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("VID", tag_));
+    }
+
+    function computeAdapterId(uint32 chainId, bytes32 tag_) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("AID", chainId, tag_));
+    }
+
+    function computeSalted(bytes32 a, bytes32 salt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, salt));
+    }
+
+    function computeSalted2(bytes32 a, bytes32 b, bytes32 salt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, b, salt));
+    }
+
+    function computeSalted3(bytes32 a, bytes32 b, bytes32 c, bytes32 salt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, b, c, salt));
+    }
+
+    // Storage gap
+    uint256[37] private __gap;
+}
