@@ -1518,3 +1518,83 @@ contract SeaH00rse {
             uint32 cid = chainIds[i];
             AdapterInfo storage a = _adapters[cid];
             views[i] = AdapterView({
+                chainId: cid,
+                adapter: a.adapter,
+                tag: a.tag,
+                registeredAt: a.registeredAt,
+                exists: a.exists
+            });
+            unchecked { ++i; }
+        }
+    }
+
+    function getVenueView(bytes32 venueId) external view returns (VenueView memory v) {
+        VenueInfo storage info = _venues[venueId];
+        v.venueId = venueId;
+        v.chainVenueTag = info.chainVenueTag;
+        v.registeredAt = info.registeredAt;
+        v.enabled = info.enabled;
+        v.exists = info.exists;
+    }
+
+    function getVenueViews(bytes32[] calldata venueIds_) external view returns (VenueView[] memory views) {
+        uint256 n = venueIds_.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        views = new VenueView[](n);
+        for (uint256 i; i < n; ) {
+            bytes32 id = venueIds_[i];
+            VenueInfo storage info = _venues[id];
+            views[i] = VenueView({
+                venueId: id,
+                chainVenueTag: info.chainVenueTag,
+                registeredAt: info.registeredAt,
+                enabled: info.enabled,
+                exists: info.exists
+            });
+            unchecked { ++i; }
+        }
+    }
+
+    function venueEnabledFlags(bytes32[] calldata venueIds_) external view returns (bool[] memory enabled) {
+        uint256 n = venueIds_.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        enabled = new bool[](n);
+        for (uint256 i; i < n; ) {
+            VenueInfo storage info = _venues[venueIds_[i]];
+            enabled[i] = info.exists && info.enabled;
+            unchecked { ++i; }
+        }
+    }
+
+    function adapterAddresses(uint32[] calldata chainIds_) external view returns (address[] memory adapters_) {
+        uint256 n = chainIds_.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        adapters_ = new address[](n);
+        for (uint256 i; i < n; ) {
+            adapters_[i] = _adapters[chainIds_[i]].adapter;
+            unchecked { ++i; }
+        }
+    }
+
+    function adapterTags(uint32[] calldata chainIds_) external view returns (bytes32[] memory tags) {
+        uint256 n = chainIds_.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        tags = new bytes32[](n);
+        for (uint256 i; i < n; ) {
+            tags[i] = _adapters[chainIds_[i]].tag;
+            unchecked { ++i; }
+        }
+    }
+
+    function venuesEnabledCount() external view returns (uint256 count) {
+        uint256 n = _venueIds.length;
+        for (uint256 i; i < n; ) {
+            if (_venues[_venueIds[i]].enabled) unchecked { ++count; }
+            unchecked { ++i; }
+        }
+    }
+
+    function venuesDisabledCount() external view returns (uint256 count) {
+        uint256 n = _venueIds.length;
+        for (uint256 i; i < n; ) {
+            if (_venues[_venueIds[i]].exists && !_venues[_venueIds[i]].enabled) unchecked { ++count; }
