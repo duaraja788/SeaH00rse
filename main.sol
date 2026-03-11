@@ -798,3 +798,83 @@ contract SeaH00rse {
                     feePaidWei: f.feePaidWei,
                     fillExists: f.exists
                 });
+            }
+            unchecked { ++i; }
+        }
+    }
+
+    function intentIdsReverse(uint256 offset, uint256 limit) external view returns (uint256[] memory ids) {
+        if (limit > SH_MAX_BATCH) revert SH__TooLarge();
+        uint256 nextId = _nextIntentId;
+        if (nextId <= 1) return new uint256[](0);
+        uint256 start = nextId - 1;
+        if (offset > start) return new uint256[](0);
+        start = start - offset;
+        uint256 n = limit;
+        if (start + 1 < n) n = start + 1;
+        ids = new uint256[](n);
+        for (uint256 i; i < n; ) {
+            ids[i] = start - i;
+            unchecked { ++i; }
+        }
+    }
+
+    function countVenues() external view returns (uint256) {
+        return _venueIds.length;
+    }
+
+    function countAdapters() external view returns (uint256) {
+        return _adapterChainIds.length;
+    }
+
+    function venueIdsPage(uint256 offset, uint256 limit) external view returns (bytes32[] memory ids) {
+        if (limit == 0) revert SH__BadAmount();
+        uint256 nAll = _venueIds.length;
+        if (offset >= nAll) return new bytes32[](0);
+        uint256 end = offset + limit;
+        if (end > nAll) end = nAll;
+        uint256 n = end - offset;
+        ids = new bytes32[](n);
+        for (uint256 i; i < n; ) {
+            ids[i] = _venueIds[offset + i];
+            unchecked { ++i; }
+        }
+    }
+
+    function adapterChainIdsPage(uint256 offset, uint256 limit) external view returns (uint32[] memory ids) {
+        if (limit == 0) revert SH__BadAmount();
+        uint256 nAll = _adapterChainIds.length;
+        if (offset >= nAll) return new uint32[](0);
+        uint256 end = offset + limit;
+        if (end > nAll) end = nAll;
+        uint256 n = end - offset;
+        ids = new uint32[](n);
+        for (uint256 i; i < n; ) {
+            ids[i] = _adapterChainIds[offset + i];
+            unchecked { ++i; }
+        }
+    }
+
+    function isVenueEnabled(bytes32 venueId) external view returns (bool) {
+        VenueInfo storage v = _venues[venueId];
+        return v.exists && v.enabled;
+    }
+
+    function venueRegisteredAt(bytes32 venueId) external view returns (uint64) {
+        return _venues[venueId].registeredAt;
+    }
+
+    function venueTag(bytes32 venueId) external view returns (bytes32) {
+        return _venues[venueId].chainVenueTag;
+    }
+
+    function adapterRegisteredAt(uint32 chainId) external view returns (uint64) {
+        return _adapters[chainId].registeredAt;
+    }
+
+    function adapterTag(uint32 chainId) external view returns (bytes32) {
+        return _adapters[chainId].tag;
+    }
+
+    function adapterExists(uint32 chainId) external view returns (bool) {
+        return _adapters[chainId].exists;
