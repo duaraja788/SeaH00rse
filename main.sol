@@ -1438,3 +1438,83 @@ contract SeaH00rse {
         return bytes32(x);
     }
 
+    function asUint256(bytes32 x) external pure returns (uint256) {
+        return uint256(x);
+    }
+
+    function asUint32(uint256 x) external pure returns (uint32) {
+        return uint32(x);
+    }
+
+    function asUint64(uint256 x) external pure returns (uint64) {
+        return uint64(x);
+    }
+
+    function asUint128(uint256 x) external pure returns (uint128) {
+        return uint128(x);
+    }
+
+    function asAddress(bytes32 x) external pure returns (address) {
+        return address(uint160(uint256(x)));
+    }
+
+    function packChains(uint32 srcChain, uint32 dstChain) external pure returns (uint64 packed) {
+        packed = (uint64(srcChain) << 32) | uint64(dstChain);
+    }
+
+    function unpackChains(uint64 packed) external pure returns (uint32 srcChain, uint32 dstChain) {
+        srcChain = uint32(packed >> 32);
+        dstChain = uint32(packed);
+    }
+
+    function packFee(uint128 a, uint128 b) external pure returns (bytes32) {
+        return bytes32((uint256(a) << 128) | uint256(b));
+    }
+
+    function unpackFee(bytes32 x) external pure returns (uint128 a, uint128 b) {
+        uint256 u = uint256(x);
+        a = uint128(u >> 128);
+        b = uint128(u);
+    }
+
+    function safeBucket(uint256 amountWei) external pure returns (uint256) {
+        return amountWei - (amountWei % SH_FEE_BUCKET_GRANULARITY);
+    }
+
+    // ------------------------------------------------------------------------
+    // More batch registry reads (adapters + venues)
+    // ------------------------------------------------------------------------
+
+    struct AdapterView {
+        uint32 chainId;
+        address adapter;
+        bytes32 tag;
+        uint64 registeredAt;
+        bool exists;
+    }
+
+    struct VenueView {
+        bytes32 venueId;
+        bytes32 chainVenueTag;
+        uint64 registeredAt;
+        bool enabled;
+        bool exists;
+    }
+
+    function getAdapterView(uint32 chainId) external view returns (AdapterView memory v) {
+        AdapterInfo storage a = _adapters[chainId];
+        v.chainId = chainId;
+        v.adapter = a.adapter;
+        v.tag = a.tag;
+        v.registeredAt = a.registeredAt;
+        v.exists = a.exists;
+    }
+
+    function getAdapterViews(uint32[] calldata chainIds) external view returns (AdapterView[] memory views) {
+        uint256 n = chainIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        views = new AdapterView[](n);
+        for (uint256 i; i < n; ) {
+            uint32 cid = chainIds[i];
+            AdapterInfo storage a = _adapters[cid];
+            views[i] = AdapterView({
