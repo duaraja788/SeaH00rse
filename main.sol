@@ -958,3 +958,83 @@ contract SeaH00rse {
 
     function intentSummary(uint256 intentId) external view returns (
         bool exists,
+        bool filled,
+        bool flagged,
+        bool expired_,
+        uint256 blocksLeft
+    ) {
+        Intent storage it = _intents[intentId];
+        exists = it.maker != address(0);
+        if (!exists) return (false, false, false, false, 0);
+        filled = it.filled;
+        flagged = it.flagged;
+        expired_ = block.number > it.expiryBlock;
+        blocksLeft = block.number >= it.expiryBlock ? 0 : it.expiryBlock - uint64(block.number);
+    }
+
+    function intentSummaries(uint256[] calldata intentIds) external view returns (
+        bool[] memory exists,
+        bool[] memory filled,
+        bool[] memory flagged,
+        bool[] memory expired_,
+        uint256[] memory blocksLeft
+    ) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        exists = new bool[](n);
+        filled = new bool[](n);
+        flagged = new bool[](n);
+        expired_ = new bool[](n);
+        blocksLeft = new uint256[](n);
+        for (uint256 i; i < n; ) {
+            uint256 id = intentIds[i];
+            Intent storage it = _intents[id];
+            exists[i] = it.maker != address(0);
+            if (exists[i]) {
+                filled[i] = it.filled;
+                flagged[i] = it.flagged;
+                expired_[i] = block.number > it.expiryBlock;
+                blocksLeft[i] = block.number >= it.expiryBlock ? 0 : it.expiryBlock - uint64(block.number);
+            }
+            unchecked { ++i; }
+        }
+    }
+
+    function findFirstFillable(uint256 fromId, uint256 toId) external view returns (uint256 intentId, bool found) {
+        if (fromId == 0) fromId = 1;
+        if (toId >= _nextIntentId) toId = _nextIntentId - 1;
+        if (fromId > toId) return (0, false);
+        for (uint256 id = fromId; id <= toId; ) {
+            Intent storage it = _intents[id];
+            if (it.maker != address(0) && !it.filled && !it.flagged && block.number <= it.expiryBlock) {
+                return (id, true);
+            }
+            unchecked { ++id; }
+        }
+        return (0, false);
+    }
+
+    function countFillable(uint256 fromId, uint256 toId) external view returns (uint256 count) {
+        if (fromId == 0) fromId = 1;
+        if (toId >= _nextIntentId) toId = _nextIntentId - 1;
+        if (fromId > toId) return 0;
+        for (uint256 id = fromId; id <= toId; ) {
+            Intent storage it = _intents[id];
+            if (it.maker != address(0) && !it.filled && !it.flagged && block.number <= it.expiryBlock) {
+                unchecked { ++count; }
+            }
+            unchecked { ++id; }
+        }
+    }
+
+    function fillableIds(uint256 fromId, uint256 limit) external view returns (uint256[] memory ids) {
+        if (limit > SH_MAX_BATCH) revert SH__TooLarge();
+        if (fromId == 0) fromId = 1;
+        uint256[] memory temp = new uint256[](limit);
+        uint256 found;
+        for (uint256 id = fromId; id < _nextIntentId && found < limit; ) {
+            Intent storage it = _intents[id];
+            if (it.maker != address(0) && !it.filled && !it.flagged && block.number <= it.expiryBlock) {
+                temp[found] = id;
+                unchecked { ++found; }
+            }
