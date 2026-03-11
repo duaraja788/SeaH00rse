@@ -1278,3 +1278,83 @@ contract SeaH00rse {
         for (uint256 i; i < n; ) {
             Intent storage it = _intents[intentIds[i]];
             src[i] = it.srcChain;
+            dst[i] = it.dstChain;
+            unchecked { ++i; }
+        }
+    }
+
+    function expiriesOf(uint256[] calldata intentIds) external view returns (uint64[] memory exp) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        exp = new uint64[](n);
+        for (uint256 i; i < n; ) {
+            exp[i] = _intents[intentIds[i]].expiryBlock;
+            unchecked { ++i; }
+        }
+    }
+
+    function makersOf(uint256[] calldata intentIds) external view returns (address[] memory makers) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        makers = new address[](n);
+        for (uint256 i; i < n; ) {
+            makers[i] = _intents[intentIds[i]].maker;
+            unchecked { ++i; }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // “Cross-chain trading platform” themed helpers (UI convenience)
+    // ------------------------------------------------------------------------
+
+    function venueDisplay(bytes32 venueId) external view returns (string memory) {
+        VenueInfo storage v = _venues[venueId];
+        if (!v.exists) return "VENUE_UNKNOWN";
+        return string(abi.encodePacked(
+            "VENUE_",
+            uint256(uint32(uint256(v.chainVenueTag))).toString(),
+            "_",
+            v.enabled ? "ON" : "OFF"
+        ));
+    }
+
+    function adapterDisplay(uint32 chainId) external view returns (string memory) {
+        AdapterInfo storage a = _adapters[chainId];
+        if (!a.exists) return "ADAPTER_NONE";
+        return string(abi.encodePacked("ADAPTER_", uint256(chainId).toString()));
+    }
+
+    function intentDisplay(uint256 intentId) external view returns (string memory) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) return "INTENT_NONE";
+        string memory s = chainName(it.srcChain);
+        string memory d = chainName(it.dstChain);
+        return string(abi.encodePacked("INTENT_", intentId.toString(), "_", s, "_TO_", d));
+    }
+
+    function intentHex(uint256 intentId) external view returns (string memory) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) return "0x";
+        return it.intentHash.toHex();
+    }
+
+    function fillHex(uint256 intentId) external view returns (string memory) {
+        Fill storage f = _fills[intentId];
+        if (!f.exists) return "0x";
+        return f.fillHash.toHex();
+    }
+
+    function venueHex(bytes32 venueId) external pure returns (string memory) {
+        return venueId.toHex();
+    }
+
+    function computeRouteKey(uint32 srcChain, uint32 dstChain, bytes32 venueHint) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("ROUTE", srcChain, dstChain, venueHint));
+    }
+
+    function computeQuoteKey(bytes32 intentHash, bytes32 venueId, uint64 expiryBlock) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("QUOTE", intentHash, venueId, expiryBlock));
+    }
+
+    function computeBridgeTag(uint32 srcChain, uint32 dstChain, bytes32 bridgeName) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("BRIDGE", srcChain, dstChain, bridgeName));
