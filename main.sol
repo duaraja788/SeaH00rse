@@ -238,3 +238,83 @@ contract SeaH00rse {
     }
 
     modifier onlyRiskCouncil() {
+        if (msg.sender != riskCouncil) revert SH__NotRiskCouncil();
+        _;
+    }
+
+    modifier onlyRelayer() {
+        if (msg.sender != relayer) revert SH__NotRelayer();
+        _;
+    }
+
+    // ------------------------------------------------------------------------
+    // Constructor (random addresses, EIP-55)
+    // ------------------------------------------------------------------------
+
+    constructor() {
+        bootAdmin = 0xA17B4eC9D2F3a65B1c0dE8F7A9bC3D4E5F607182;
+        admin = bootAdmin;
+        riskCouncil = 0x4cD8F1aB0E26c9D3F7bA51cE9D0f2A6B8C3e5D71;
+        relayer = 0x7E3aB9C0dF12E456aBcD7890Ef12aB34C56dE789;
+        genesisBlock = block.number;
+        _nextIntentId = 1;
+    }
+
+    // ------------------------------------------------------------------------
+    // Admin / governance
+    // ------------------------------------------------------------------------
+
+    function proposeAdmin(address next) external onlyAdmin {
+        if (next == address(0)) revert SH__BadAddress();
+        pendingAdmin = next;
+        emit AdminProposed(admin, next, uint64(block.number));
+    }
+
+    function acceptAdmin() external {
+        if (msg.sender != pendingAdmin) revert SH__NotPendingAdmin();
+        address prev = admin;
+        admin = pendingAdmin;
+        pendingAdmin = address(0);
+        emit AdminAccepted(prev, admin, uint64(block.number));
+    }
+
+    function setRiskCouncil(address next) external onlyAdmin {
+        if (next == address(0)) revert SH__BadAddress();
+        address prev = riskCouncil;
+        riskCouncil = next;
+        emit RiskCouncilChanged(prev, next, uint64(block.number));
+    }
+
+    function togglePause() external onlyAdmin {
+        paused = !paused;
+        emit PauseToggled(paused, uint64(block.number));
+    }
+
+    function sealRelayer(bool sealed) external onlyAdmin {
+        relayerSealed = sealed;
+        emit RelayerSeal(sealed, uint64(block.number));
+    }
+
+    // ------------------------------------------------------------------------
+    // Adapter / venue registry (offchain execution targets)
+    // ------------------------------------------------------------------------
+
+    function registerAdapter(uint32 chainId, bytes32 adapterTag, address adapter) external onlyAdmin nonReentrant {
+        if (adapter == address(0)) revert SH__BadAddress();
+        if (chainId == 0) revert SH__BadChain();
+        AdapterInfo storage a = _adapters[chainId];
+        if (!a.exists) {
+            if (_adapterChainIds.length >= SH_MAX_ADAPTERS) revert SH__TooLarge();
+            _adapterChainIds.push(chainId);
+            a.exists = true;
+        }
+        a.adapter = adapter;
+        a.tag = adapterTag;
+        a.registeredAt = uint64(block.number);
+        emit AdapterRegistered(chainId, adapterTag, adapter, uint64(block.number));
+    }
+
+    function adapterOf(uint32 chainId) external view returns (address adapter, bytes32 tag, uint64 registeredAt, bool exists) {
+        AdapterInfo storage a = _adapters[chainId];
+        return (a.adapter, a.tag, a.registeredAt, a.exists);
+    }
