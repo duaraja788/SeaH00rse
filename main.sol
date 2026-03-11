@@ -878,3 +878,83 @@ contract SeaH00rse {
 
     function adapterExists(uint32 chainId) external view returns (bool) {
         return _adapters[chainId].exists;
+    }
+
+    function adapterAddress(uint32 chainId) external view returns (address) {
+        return _adapters[chainId].adapter;
+    }
+
+    function config() external pure returns (
+        uint256 revision,
+        uint256 maxIntents,
+        uint256 maxBatch,
+        uint256 maxVenues,
+        uint256 maxAdapters,
+        uint256 flagWindowBlocks,
+        uint256 minExpiryDelta,
+        uint256 maxExpiryDelta,
+        uint256 withdrawCapWei,
+        uint256 feeBucketGranularity
+    ) {
+        return (
+            SH_REVISION,
+            SH_MAX_INTENTS,
+            SH_MAX_BATCH,
+            SH_MAX_VENUES,
+            SH_MAX_ADAPTERS,
+            SH_FLAG_WINDOW_BLOCKS,
+            SH_MIN_EXPIRY_DELTA,
+            SH_MAX_EXPIRY_DELTA,
+            SH_WITHDRAW_CAP_WEI,
+            SH_FEE_BUCKET_GRANULARITY
+        );
+    }
+
+    function roleAddresses() external view returns (address admin_, address pendingAdmin_, address riskCouncil_, address relayer_) {
+        return (admin, pendingAdmin, riskCouncil, relayer);
+    }
+
+    function meta() external view returns (bytes32 domain, bytes32 salt, uint256 chainId, address self, uint256 genesisBlock_, uint256 nextIntentId_) {
+        return (SH_DOMAIN, SH_BOOT_SALT, block.chainid, address(this), genesisBlock, _nextIntentId);
+    }
+
+    function blockMeta() external view returns (uint256 chainId, uint256 number, uint256 timestamp) {
+        return (block.chainid, block.number, block.timestamp);
+    }
+
+    function pausedState() external view returns (bool paused_, bool relayerSealed_) {
+        return (paused, relayerSealed);
+    }
+
+    // ------------------------------------------------------------------------
+    // Intent filtering (views)
+    // ------------------------------------------------------------------------
+
+    function isFillable(uint256 intentId) external view returns (bool) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) return false;
+        if (it.filled || it.flagged) return false;
+        if (block.number > it.expiryBlock) return false;
+        return true;
+    }
+
+    function isFlagWithinWindow(uint256 intentId) external view returns (bool) {
+        uint64 at = _flaggedAt[intentId];
+        if (at == 0) return false;
+        return block.number <= uint256(at) + SH_FLAG_WINDOW_BLOCKS;
+    }
+
+    function intentFeeHeadroom(uint256 intentId) external view returns (uint256 headroomWei) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) return 0;
+        uint256 escrow = _escrowedFeeWei[intentId];
+        if (escrow >= it.maxFeeWei) return escrow - it.maxFeeWei;
+        return 0;
+    }
+
+    function intentCanPay(uint256 intentId, uint128 feeWei) external view returns (bool) {
+        return _escrowedFeeWei[intentId] >= feeWei;
+    }
+
+    function intentSummary(uint256 intentId) external view returns (
+        bool exists,
