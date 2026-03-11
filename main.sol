@@ -318,3 +318,83 @@ contract SeaH00rse {
         AdapterInfo storage a = _adapters[chainId];
         return (a.adapter, a.tag, a.registeredAt, a.exists);
     }
+
+    function adapterChainIds() external view returns (uint32[] memory) {
+        return _adapterChainIds;
+    }
+
+    function registerVenue(bytes32 venueId, bytes32 chainVenueTag) external onlyAdmin nonReentrant {
+        if (venueId == bytes32(0)) revert SH__BadVenue();
+        VenueInfo storage v = _venues[venueId];
+        if (!v.exists) {
+            if (_venueIds.length >= SH_MAX_VENUES) revert SH__TooLarge();
+            _venueIds.push(venueId);
+            v.exists = true;
+            v.registeredAt = uint64(block.number);
+        }
+        v.chainVenueTag = chainVenueTag;
+        v.enabled = true;
+        emit VenueRegistered(venueId, chainVenueTag, uint64(block.number));
+        emit VenueEnabled(venueId, true, uint64(block.number));
+    }
+
+    function setVenueEnabled(bytes32 venueId, bool enabled) external onlyAdmin {
+        VenueInfo storage v = _venues[venueId];
+        if (!v.exists) revert SH__Missing();
+        v.enabled = enabled;
+        emit VenueEnabled(venueId, enabled, uint64(block.number));
+    }
+
+    function venueOf(bytes32 venueId) external view returns (bytes32 chainVenueTag, uint64 registeredAt, bool enabled, bool exists) {
+        VenueInfo storage v = _venues[venueId];
+        return (v.chainVenueTag, v.registeredAt, v.enabled, v.exists);
+    }
+
+    function venueIds() external view returns (bytes32[] memory) {
+        return _venueIds;
+    }
+
+    // ------------------------------------------------------------------------
+    // Intent posting + fee escrow
+    // ------------------------------------------------------------------------
+
+    function postIntent(
+        bytes32 intentHash,
+        uint32 srcChain,
+        uint32 dstChain,
+        uint64 expiryBlock,
+        uint128 maxFeeWei,
+        bytes32 venueHint
+    ) external payable whenNotPaused nonReentrant returns (uint256 intentId) {
+        if (intentHash == bytes32(0)) revert SH__BadIntent();
+        if (srcChain == 0 || dstChain == 0) revert SH__BadChain();
+        if (srcChain == dstChain) revert SH__BadChain();
+        uint64 nowB = uint64(block.number);
+        if (expiryBlock <= nowB + SH_MIN_EXPIRY_DELTA) revert SH__BadWindow();
+        if (expiryBlock > nowB + SH_MAX_EXPIRY_DELTA) revert SH__BadWindow();
+        if (_nextIntentId > SH_MAX_INTENTS) revert SH__TooLarge();
+        intentId = _nextIntentId;
+        unchecked { ++_nextIntentId; }
+
+        Intent storage it = _intents[intentId];
+        it.maker = msg.sender;
+        it.intentHash = intentHash;
+        it.venueHint = venueHint;
+        it.srcChain = srcChain;
+        it.dstChain = dstChain;
+        it.postedAtBlock = nowB;
+        it.expiryBlock = expiryBlock;
+        it.maxFeeWei = maxFeeWei;
+        it.filled = false;
+        it.flagged = false;
+
+        unchecked { _makerIntentCount[msg.sender] += 1; }
+
+        if (msg.value != 0) {
+            if (msg.value % SH_FEE_BUCKET_GRANULARITY != 0) revert SH__BadAmount();
+            _escrowedFeeWei[intentId] = msg.value;
+            emit FeeDeposited(intentId, msg.sender, msg.value);
+        }
+
+        emit IntentPosted(intentId, msg.sender, intentHash, srcChain, dstChain, expiryBlock, maxFeeWei);
+    }
