@@ -398,3 +398,83 @@ contract SeaH00rse {
 
         emit IntentPosted(intentId, msg.sender, intentHash, srcChain, dstChain, expiryBlock, maxFeeWei);
     }
+
+    function depositFee(uint256 intentId) external payable whenNotPaused nonReentrant {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        if (msg.value == 0) revert SH__BadAmount();
+        if (msg.value % SH_FEE_BUCKET_GRANULARITY != 0) revert SH__BadAmount();
+        _escrowedFeeWei[intentId] += msg.value;
+        emit FeeDeposited(intentId, msg.sender, msg.value);
+    }
+
+    function withdrawFee(uint256 intentId, address to, uint256 amountWei) external nonReentrant {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        if (msg.sender != it.maker) revert SH__NotAdmin();
+        if (to == address(0)) revert SH__BadAddress();
+        if (amountWei == 0) revert SH__BadAmount();
+        if (_escrowedFeeWei[intentId] < amountWei) revert SH__BadAmount();
+        _escrowedFeeWei[intentId] -= amountWei;
+        (bool ok,) = to.call{value: amountWei}("");
+        if (!ok) revert SH__TransferFailed();
+        emit FeeWithdrawn(intentId, to, amountWei);
+    }
+
+    function escrowedFee(uint256 intentId) external view returns (uint256) {
+        return _escrowedFeeWei[intentId];
+    }
+
+    function makerIntentCount(address maker) external view returns (uint256) {
+        return _makerIntentCount[maker];
+    }
+
+    // ------------------------------------------------------------------------
+    // Flags (risk council)
+    // ------------------------------------------------------------------------
+
+    function flagIntent(uint256 intentId, bytes32 reason) external onlyRiskCouncil nonReentrant {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        if (it.filled) revert SH__Already();
+        if (it.flagged) revert SH__Already();
+        it.flagged = true;
+        _flaggedAt[intentId] = uint64(block.number);
+        _flagReason[intentId] = reason;
+        emit IntentFlagged(intentId, reason, uint64(block.number));
+    }
+
+    function unflagIntent(uint256 intentId) external onlyRiskCouncil nonReentrant {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        if (!it.flagged) revert SH__Missing();
+        it.flagged = false;
+        _flaggedAt[intentId] = 0;
+        _flagReason[intentId] = bytes32(0);
+        emit IntentUnflagged(intentId, uint64(block.number));
+    }
+
+    function flagInfo(uint256 intentId) external view returns (bool flagged, uint64 flaggedAt, bytes32 reason) {
+        flagged = _intents[intentId].flagged;
+        flaggedAt = _flaggedAt[intentId];
+        reason = _flagReason[intentId];
+    }
+
+    // ------------------------------------------------------------------------
+    // Relayer attestations
+    // ------------------------------------------------------------------------
+
+    function attestFill(
+        uint256 intentId,
+        bytes32 fillHash,
+        bytes32 venueId,
+        uint128 feePaidWei
+    ) external onlyRelayer whenNotPaused nonReentrant {
+        if (relayerSealed) revert SH__Seal();
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        if (it.filled) revert SH__Already();
+        if (it.flagged) revert SH__Flagged();
+        if (fillHash == bytes32(0)) revert SH__BadBytes();
+        VenueInfo storage v = _venues[venueId];
+        if (!v.exists || !v.enabled) revert SH__BadVenue();
