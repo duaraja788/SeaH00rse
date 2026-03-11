@@ -1038,3 +1038,83 @@ contract SeaH00rse {
                 temp[found] = id;
                 unchecked { ++found; }
             }
+            unchecked { ++id; }
+        }
+        ids = new uint256[](found);
+        for (uint256 i; i < found; ) {
+            ids[i] = temp[i];
+            unchecked { ++i; }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Count aggregations (O(n) views)
+    // ------------------------------------------------------------------------
+
+    function counts() external view returns (uint256 total, uint256 filledCount, uint256 flaggedCount, uint256 expiredCount) {
+        uint256 nextId = _nextIntentId;
+        total = nextId <= 1 ? 0 : nextId - 1;
+        for (uint256 id = 1; id < nextId; ) {
+            Intent storage it = _intents[id];
+            if (it.maker != address(0)) {
+                if (it.filled) unchecked { ++filledCount; }
+                if (it.flagged) unchecked { ++flaggedCount; }
+                if (block.number > it.expiryBlock) unchecked { ++expiredCount; }
+            }
+            unchecked { ++id; }
+        }
+    }
+
+    function totalEscrowed() external view returns (uint256 totalWei) {
+        uint256 nextId = _nextIntentId;
+        for (uint256 id = 1; id < nextId; ) {
+            totalWei += _escrowedFeeWei[id];
+            unchecked { ++id; }
+        }
+    }
+
+    function totalEscrowedInRange(uint256 fromId, uint256 toId) external view returns (uint256 totalWei) {
+        if (fromId == 0) fromId = 1;
+        if (toId >= _nextIntentId) toId = _nextIntentId - 1;
+        if (fromId > toId) return 0;
+        for (uint256 id = fromId; id <= toId; ) {
+            totalWei += _escrowedFeeWei[id];
+            unchecked { ++id; }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // More pure helpers (cross-chain tags)
+    // ------------------------------------------------------------------------
+
+    function computeVenueId(bytes32 chainVenueTag, bytes32 salt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("VENUE", chainVenueTag, salt));
+    }
+
+    function computeAdapterTag(string calldata name, uint32 chainId) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("ADAPTER", name, chainId));
+    }
+
+    function computeIntentHash(
+        bytes32 makerSalt,
+        uint32 srcChain,
+        uint32 dstChain,
+        bytes32 srcAsset,
+        bytes32 dstAsset,
+        uint128 srcAmount,
+        uint128 minDstAmount
+    ) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(
+            "INTENT",
+            makerSalt,
+            srcChain,
+            dstChain,
+            srcAsset,
+            dstAsset,
+            srcAmount,
+            minDstAmount
+        ));
+    }
+
+    function computeFillHash(bytes32 intentHash, bytes32 executorSig, bytes32 outcomeDigest) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("FILL", intentHash, executorSig, outcomeDigest));
