@@ -1198,3 +1198,83 @@ contract SeaH00rse {
     }
 
     // ------------------------------------------------------------------------
+    // Extra pagination helpers
+    // ------------------------------------------------------------------------
+
+    function intentIdRange() external view returns (uint256 minId, uint256 maxId, uint256 nextId) {
+        nextId = _nextIntentId;
+        if (nextId <= 1) return (0, 0, nextId);
+        return (1, nextId - 1, nextId);
+    }
+
+    function contractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function canWithdrawProtocol(uint256 amountWei) external view returns (bool) {
+        if (amountWei == 0) return false;
+        return _protocolWithdrawnWei + amountWei <= SH_WITHDRAW_CAP_WEI;
+    }
+
+    // ------------------------------------------------------------------------
+    // Bulk escrow reads
+    // ------------------------------------------------------------------------
+
+    function escrowedFees(uint256[] calldata intentIds) external view returns (uint256[] memory fees) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        fees = new uint256[](n);
+        for (uint256 i; i < n; ) {
+            fees[i] = _escrowedFeeWei[intentIds[i]];
+            unchecked { ++i; }
+        }
+    }
+
+    function fillHashes(uint256[] calldata intentIds) external view returns (bytes32[] memory hashes) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        hashes = new bytes32[](n);
+        for (uint256 i; i < n; ) {
+            hashes[i] = _fills[intentIds[i]].fillHash;
+            unchecked { ++i; }
+        }
+    }
+
+    function fillVenues(uint256[] calldata intentIds) external view returns (bytes32[] memory venues) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        venues = new bytes32[](n);
+        for (uint256 i; i < n; ) {
+            venues[i] = _fills[intentIds[i]].venueId;
+            unchecked { ++i; }
+        }
+    }
+
+    function fillBlocks(uint256[] calldata intentIds) external view returns (uint64[] memory blocks_) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        blocks_ = new uint64[](n);
+        for (uint256 i; i < n; ) {
+            blocks_[i] = _fills[intentIds[i]].fillBlock;
+            unchecked { ++i; }
+        }
+    }
+
+    function feePaid(uint256[] calldata intentIds) external view returns (uint128[] memory fees_) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        fees_ = new uint128[](n);
+        for (uint256 i; i < n; ) {
+            fees_[i] = _fills[intentIds[i]].feePaidWei;
+            unchecked { ++i; }
+        }
+    }
+
+    function chainsOf(uint256[] calldata intentIds) external view returns (uint32[] memory src, uint32[] memory dst) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        src = new uint32[](n);
+        dst = new uint32[](n);
+        for (uint256 i; i < n; ) {
+            Intent storage it = _intents[intentIds[i]];
+            src[i] = it.srcChain;
