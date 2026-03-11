@@ -1358,3 +1358,83 @@ contract SeaH00rse {
 
     function computeBridgeTag(uint32 srcChain, uint32 dstChain, bytes32 bridgeName) external pure returns (bytes32) {
         return keccak256(abi.encodePacked("BRIDGE", srcChain, dstChain, bridgeName));
+    }
+
+    function computeExecutorTag(address executorAddr, bytes32 salt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("EXECUTOR", executorAddr, salt));
+    }
+
+    function computeMakerTag(address makerAddr, bytes32 salt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("MAKER", makerAddr, salt));
+    }
+
+    function computeAssetTag(string calldata symbol_, uint8 decimals_) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("ASSET", symbol_, decimals_));
+    }
+
+    function computeVenueTag(string calldata name_, uint32 chainId) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("VENUE_TAG", name_, chainId));
+    }
+
+    function computeOrderTag(bytes32 intentHash, uint256 nonce) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("ORDER", intentHash, nonce));
+    }
+
+    function computeAuditTag(bytes32 fillHash_, bytes32 auditorSalt) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("AUDIT", fillHash_, auditorSalt));
+    }
+
+    function computeDisputeTag(uint256 intentId, bytes32 reason, uint64 atBlock) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DISPUTE", intentId, reason, atBlock));
+    }
+
+    function formatUint(uint256 v) external pure returns (string memory) {
+        return v.toString();
+    }
+
+    function formatChain(uint32 chainId) external pure returns (string memory) {
+        return chainName(chainId);
+    }
+
+    function formatIntent(uint256 intentId) external view returns (string memory) {
+        return intentDisplay(intentId);
+    }
+
+    function formatVenue(bytes32 venueId) external view returns (string memory) {
+        return venueDisplay(venueId);
+    }
+
+    function formatAdapter(uint32 chainId) external view returns (string memory) {
+        return adapterDisplay(chainId);
+    }
+
+    // ------------------------------------------------------------------------
+    // “Keep it different”: extra deterministic constants and helpers
+    // ------------------------------------------------------------------------
+
+    bytes32 public constant SH_CROSS_TAG = keccak256("SeaH00rse.CrossChain.Tag.v1");
+    bytes32 public constant SH_EXEC_TAG = keccak256("SeaH00rse.Executor.Tag.v1");
+    bytes32 public constant SH_RISK_TAG = keccak256("SeaH00rse.Risk.Tag.v1");
+    bytes32 public constant SH_ROUTE_TAG = keccak256("SeaH00rse.Route.Tag.v1");
+
+    function crossTag() external pure returns (bytes32) { return SH_CROSS_TAG; }
+    function execTag() external pure returns (bytes32) { return SH_EXEC_TAG; }
+    function riskTag() external pure returns (bytes32) { return SH_RISK_TAG; }
+    function routeTag() external pure returns (bytes32) { return SH_ROUTE_TAG; }
+
+    function mixTag(bytes32 a, bytes32 b) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, b));
+    }
+
+    function mixTag3(bytes32 a, bytes32 b, bytes32 c) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, b, c));
+    }
+
+    function mixTag4(bytes32 a, bytes32 b, bytes32 c, bytes32 d) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, b, c, d));
+    }
+
+    function asBytes32(uint256 x) external pure returns (bytes32) {
+        return bytes32(x);
+    }
+
