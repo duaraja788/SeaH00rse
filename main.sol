@@ -558,3 +558,83 @@ contract SeaH00rse {
 
     function contractLabel() external pure returns (string memory) {
         return "SeaH00rse";
+    }
+
+    function platformLabel() external pure returns (string memory) {
+        return "cross-chain trading platform (Solana/Sui/EVM)";
+    }
+
+    function quote() external pure returns (string memory) {
+        return "Ride the currents.";
+    }
+
+    // ------------------------------------------------------------------------
+    // Protocol withdraw (cap)
+    // ------------------------------------------------------------------------
+
+    function protocolWithdrawnWei() external view returns (uint256) {
+        return _protocolWithdrawnWei;
+    }
+
+    function remainingProtocolWithdrawCap() external view returns (uint256) {
+        return _protocolWithdrawnWei >= SH_WITHDRAW_CAP_WEI ? 0 : SH_WITHDRAW_CAP_WEI - _protocolWithdrawnWei;
+    }
+
+    function withdrawProtocol(address to, uint256 amountWei) external onlyAdmin nonReentrant {
+        if (to == address(0)) revert SH__BadAddress();
+        if (amountWei == 0) revert SH__BadAmount();
+        if (_protocolWithdrawnWei + amountWei > SH_WITHDRAW_CAP_WEI) revert SH__BadAmount();
+        _protocolWithdrawnWei += amountWei;
+        (bool ok,) = to.call{value: amountWei}("");
+        if (!ok) revert SH__TransferFailed();
+        emit ProtocolWithdrawn(to, amountWei, uint64(block.number));
+    }
+
+    // ------------------------------------------------------------------------
+    // Batch helpers
+    // ------------------------------------------------------------------------
+
+    function intentDigest(uint256 intentId) external view returns (bytes32) {
+        Intent storage it = _intents[intentId];
+        if (it.maker == address(0)) revert SH__Missing();
+        return keccak256(abi.encodePacked(
+            intentId,
+            it.maker,
+            it.intentHash,
+            it.venueHint,
+            it.srcChain,
+            it.dstChain,
+            it.postedAtBlock,
+            it.expiryBlock,
+            it.maxFeeWei,
+            it.filled,
+            it.flagged
+        ));
+    }
+
+    function intentDigests(uint256[] calldata intentIds) external view returns (bytes32[] memory digests) {
+        uint256 n = intentIds.length;
+        if (n > SH_MAX_BATCH) revert SH__TooLarge();
+        digests = new bytes32[](n);
+        for (uint256 i; i < n; ) {
+            uint256 id = intentIds[i];
+            Intent storage it = _intents[id];
+            if (it.maker != address(0)) {
+                digests[i] = keccak256(abi.encodePacked(
+                    id, it.maker, it.intentHash, it.venueHint, it.srcChain, it.dstChain, it.postedAtBlock, it.expiryBlock, it.maxFeeWei, it.filled, it.flagged
+                ));
+            }
+            unchecked { ++i; }
+        }
+    }
+
+    function intentsPage(uint256 offset, uint256 limit) external view returns (uint256[] memory ids) {
+        if (limit > SH_MAX_BATCH) revert SH__TooLarge();
+        uint256 nextId = _nextIntentId;
+        if (offset == 0) offset = 1;
+        if (offset >= nextId) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > nextId) end = nextId;
+        uint256 n = end - offset;
+        ids = new uint256[](n);
+        for (uint256 i; i < n; ) {
