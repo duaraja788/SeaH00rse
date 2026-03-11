@@ -1598,3 +1598,83 @@ contract SeaH00rse {
         uint256 n = _venueIds.length;
         for (uint256 i; i < n; ) {
             if (_venues[_venueIds[i]].exists && !_venues[_venueIds[i]].enabled) unchecked { ++count; }
+            unchecked { ++i; }
+        }
+    }
+
+    function adaptersSetCount() external view returns (uint256 count) {
+        uint256 n = _adapterChainIds.length;
+        for (uint256 i; i < n; ) {
+            if (_adapters[_adapterChainIds[i]].adapter != address(0)) unchecked { ++count; }
+            unchecked { ++i; }
+        }
+    }
+
+    function lastVenueId() external view returns (bytes32) {
+        uint256 n = _venueIds.length;
+        if (n == 0) return bytes32(0);
+        return _venueIds[n - 1];
+    }
+
+    function lastAdapterChainId() external view returns (uint32) {
+        uint256 n = _adapterChainIds.length;
+        if (n == 0) return 0;
+        return _adapterChainIds[n - 1];
+    }
+
+    // ------------------------------------------------------------------------
+    // Intent histogram (O(n) view)
+    // ------------------------------------------------------------------------
+
+    function chainHistogram() external view returns (
+        uint256 evmCount,
+        uint256 solCount,
+        uint256 suiCount,
+        uint256 otherCount
+    ) {
+        uint256 nextId = _nextIntentId;
+        for (uint256 id = 1; id < nextId; ) {
+            Intent storage it = _intents[id];
+            if (it.maker != address(0)) {
+                if (it.dstChain == SH_CHAIN_EVM) unchecked { ++evmCount; }
+                else if (it.dstChain == SH_CHAIN_SOLANA) unchecked { ++solCount; }
+                else if (it.dstChain == SH_CHAIN_SUI) unchecked { ++suiCount; }
+                else unchecked { ++otherCount; }
+            }
+            unchecked { ++id; }
+        }
+    }
+
+    function venueHistogram(uint256 fromIndex, uint256 maxItems) external view returns (bytes32[] memory venues_, uint256[] memory counts_) {
+        uint256 nAll = _venueIds.length;
+        if (fromIndex >= nAll) return (new bytes32[](0), new uint256[](0));
+        if (maxItems == 0) revert SH__BadAmount();
+        uint256 end = fromIndex + maxItems;
+        if (end > nAll) end = nAll;
+        uint256 n = end - fromIndex;
+        venues_ = new bytes32[](n);
+        counts_ = new uint256[](n);
+        for (uint256 i; i < n; ) {
+            bytes32 venueId = _venueIds[fromIndex + i];
+            venues_[i] = venueId;
+            uint256 nextId = _nextIntentId;
+            uint256 c;
+            for (uint256 id = 1; id < nextId; ) {
+                if (_fills[id].exists && _fills[id].venueId == venueId) unchecked { ++c; }
+                unchecked { ++id; }
+            }
+            counts_[i] = c;
+            unchecked { ++i; }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Misc helpers for offchain indexers
+    // ------------------------------------------------------------------------
+
+    function eventTopicIntentPosted() external pure returns (bytes32) {
+        return keccak256("IntentPosted(uint256,address,bytes32,uint32,uint32,uint64,uint128)");
+    }
+
+    function eventTopicIntentFilled() external pure returns (bytes32) {
+        return keccak256("IntentFilled(uint256,bytes32,bytes32,uint64,uint128)");
